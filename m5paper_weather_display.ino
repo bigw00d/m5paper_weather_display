@@ -2,6 +2,9 @@
 #include <M5EPD.h>
 #include <LovyanGFX.hpp>
 #include <map>
+
+#include <driver/rtc_io.h>
+
 #include "src/wifi_connection.hpp"
 #include "src/weather_forecast.hpp"
 #include "src/time_manager.hpp"
@@ -23,6 +26,8 @@ int h;
 
 //weather
 std::map<int, String> weather_icon_file_map;
+
+RTC_DATA_ATTR int bootCount = 0;  // 起動回数を保持（deepsleepしても値は消えない）
 
 void setupWeatherIcon(void)
 {
@@ -52,9 +57,27 @@ void setup(void)
 
   M5.SHT30.Begin();
   M5.RTC.begin();
+  
+  switch(esp_sleep_get_wakeup_cause())
+  {
+  case ESP_SLEEP_WAKEUP_EXT0 :
+  case ESP_SLEEP_WAKEUP_EXT1 :
+  case ESP_SLEEP_WAKEUP_TIMER :
+  case ESP_SLEEP_WAKEUP_TOUCHPAD :
+  case ESP_SLEEP_WAKEUP_ULP :
+    gfx.init_without_reset(); // deep sleep からの復帰時はinit_without_resetを呼び出す。
+    break;
 
-  gfx.init();
-  gfx.setRotation(1);
+  default :
+    gfx.init();            // 通常起動時はinitを呼び出す。
+    break;
+  }
+  
+  ++bootCount;
+
+//  gfx.init();
+  // gfx.setRotation(1);
+  gfx.setRotation(3);
 
   w = gfx.width();
   h = gfx.height();
@@ -116,8 +139,16 @@ void setup(void)
   delay(1000);
   wifi_connection.downWiFi();
 
-  M5.shutdown(15300);//Updated every 4.25h
+  // M5.shutdown(15300);//Updated every 4.25h
   //M5.shutdown(60);//Updated every 4.25h
+
+  /////////////////////////////////
+
+  ESP_LOGW("sleep");
+  esp_sleep_enable_timer_wakeup(180 * 1000 * 1000); // 180 sec
+
+  esp_deep_sleep_start();
+
 }
 
 void drawWeather(void)
@@ -210,10 +241,14 @@ void drawRainFallChance(void)
   String rfc18_24 = weather_forecast.getRainFallChance18_24() + "%";
 
   rfc_sp.setTextSize(0.8);
-  rfc_sp.drawString("00-06", 120*0, 0);
-  rfc_sp.drawString("06-12", 120*1, 0);
-  rfc_sp.drawString("12-18", 120*2, 0);
-  rfc_sp.drawString("18-24", 120*3, 0);
+  String timeArea0 = weather_forecast.getRainFallTimeArea0();
+  String timeArea1 = weather_forecast.getRainFallTimeArea1();
+  String timeArea2 = weather_forecast.getRainFallTimeArea2();
+  String timeArea3 = weather_forecast.getRainFallTimeArea3();
+  rfc_sp.drawString(timeArea0, 120*0, 0);
+  rfc_sp.drawString(timeArea1, 120*1, 0);
+  rfc_sp.drawString(timeArea2, 120*2, 0);
+  rfc_sp.drawString(timeArea3, 120*3, 0);
   rfc_sp.setTextSize(1.3);
   rfc_sp.drawString(rfc00_06.c_str(), 120*0, 46);
   rfc_sp.drawString(rfc06_12.c_str(), 120*1, 46);
