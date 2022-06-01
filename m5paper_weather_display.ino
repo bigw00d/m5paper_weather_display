@@ -5,9 +5,16 @@
 
 #include <driver/rtc_io.h>
 
+#include <SD.h>
+
 #include "src/wifi_connection.hpp"
 #include "src/weather_forecast.hpp"
 #include "src/time_manager.hpp"
+
+#define LOG_FILE_NAME "/log.txt"
+static File s_myFile;
+rtc_time_t RTCtime;
+char str_log[60];
 
 LGFX gfx;
 LGFX_Sprite time_sp(&gfx);
@@ -47,6 +54,48 @@ void drawDate(const char c[])
   gfx.display();
 }
 
+String SD_read() {
+
+    String str;
+    File file = SD.open(LOG_FILE_NAME, FILE_READ);
+
+    if(file){
+        //---1byteずつ読み込んだ文字を結合
+        while (file.available()) {
+            str += char(file.read());
+        }
+    } else{
+        Serial.println(" error...");
+    }
+    //---ファイルを閉じる
+    file.close();
+    
+    return str;
+}
+
+void SD_write()
+{
+    String backLog = SD_read();
+
+    s_myFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
+    if (s_myFile) {
+
+        M5.RTC.getTime(&RTCtime);
+        Serial.print("Writing to test.txt...");
+        s_myFile.print(backLog);
+        // sprintf(str_log, "%02d:%02d:%02d Hello, World ", RTCtime.hour, RTCtime.min, RTCtime.sec);
+        snprintf(str_log, sizeof(str_log), "%02d:%02d:%02d %d %d%%", RTCtime.hour, RTCtime.min, RTCtime.sec, M5.getBatteryVoltage(), batteryRemain());
+        s_myFile.println(str_log);
+        // s_myFile.println("Hello, World");
+        // s_myFile.println("%02d:%02d:%02d Hello, World\n",
+        //               RTCtime.hour, RTCtime.min, RTCtime.sec);
+        s_myFile.close();
+        Serial.println("done.");
+    } else {
+        Serial.println("error opening test.txt");
+    }
+}
+
 void setup(void)
 {
   setupWeatherIcon();
@@ -54,6 +103,8 @@ void setup(void)
   //M5.begin();
   //M5.begin(true, true, true, true, false, false);//custmized
   M5.begin(true, true, true, true, false);
+
+  SD_write();
 
   M5.SHT30.Begin();
   M5.RTC.begin();
@@ -136,6 +187,12 @@ void setup(void)
     drawTemperature();
     drawNotice();
   }
+
+  RTCtime.hour = time_manager.getHour();
+  RTCtime.min = time_manager.getMin();
+  RTCtime.sec = 0;
+  M5.RTC.setTime(&RTCtime);
+
   delay(1000);
   wifi_connection.downWiFi();
 
