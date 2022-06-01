@@ -10,6 +10,7 @@
 #include "src/wifi_connection.hpp"
 #include "src/weather_forecast.hpp"
 #include "src/time_manager.hpp"
+#include "debug.h"
 
 #define LOG_FILE_NAME "/log.txt"
 static File s_myFile;
@@ -66,7 +67,7 @@ String SD_read() {
         }
     } else{
 //        Serial.println(" error...");
-        Serial2.println(" error...");
+        DEBUG_SERIAL.println(" error...");
     }
     //---ファイルを閉じる
     file.close();
@@ -83,7 +84,7 @@ void SD_write()
 
         M5.RTC.getTime(&RTCtime);
         // Serial.print("Writing to test.txt...");
-        Serial2.print("Writing to test.txt...");
+        DEBUG_SERIAL.print("Writing to test.txt...");
         s_myFile.print(backLog);
         // sprintf(str_log, "%02d:%02d:%02d Hello, World ", RTCtime.hour, RTCtime.min, RTCtime.sec);
         snprintf(str_log, sizeof(str_log), "%02d:%02d:%02d %d %d%%", RTCtime.hour, RTCtime.min, RTCtime.sec, M5.getBatteryVoltage(), batteryRemain());
@@ -93,10 +94,10 @@ void SD_write()
         //               RTCtime.hour, RTCtime.min, RTCtime.sec);
         s_myFile.close();
 //        Serial.println("done.");
-        Serial2.println("done.");
+        DEBUG_SERIAL.println("done.");
     } else {
 //        Serial.println("error opening test.txt");
-        Serial2.println("error opening test.txt");
+        DEBUG_SERIAL.println("error opening test.txt");
     }
 }
 
@@ -180,7 +181,7 @@ void setup(void)
 
   drawBatteryRemain();
   // Serial.printf("Start Application\r\n");
-  Serial2.printf("Start Application\r\n");
+  DEBUG_SERIAL.printf("Start Application\r\n");
 
   wifi_connection.setupWiFi();
   time_manager.syncTime();
@@ -245,7 +246,7 @@ int8_t batteryRemain(void)
   if(battery_remain > 100) battery_remain = 100;
   if(battery_remain < 0) battery_remain = 0;
   // Serial.printf("battery_remain %d\n", battery_remain);
-  Serial2.printf("battery_remain %d\n", battery_remain);
+  DEBUG_SERIAL.printf("battery_remain %d\n", battery_remain);
   return battery_remain;
 }
 
@@ -284,7 +285,7 @@ void drawSenseTempAndHumid(void)
   float temp = M5.SHT30.GetTemperature();
   float humi = M5.SHT30.GetRelHumidity();
   // Serial.printf("Temperatura: %d*C  Humedad: %d%%\r\n", (int)temp, (int)humi);
-  Serial2.printf("Temperatura: %d*C  Humedad: %d%%\r\n", (int)temp, (int)humi);
+  DEBUG_SERIAL.printf("Temperatura: %d*C  Humedad: %d%%\r\n", (int)temp, (int)humi);
   sense_temp_sp.clear(TFT_WHITE);
   sense_temp_sp.setTextColor(TFT_BLACK);
   sense_temp_sp.drawNumber((int)temp, 0, 0);

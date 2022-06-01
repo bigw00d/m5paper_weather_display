@@ -1,6 +1,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include "weather_forecast.hpp"
+#include "../debug.h"
 
 WeatherForecast::WeatherForecast(void)
 {
@@ -17,7 +18,7 @@ String WeatherForecast::createJson(String json_string)
 
 bool WeatherForecast::getWeatherForecast(DynamicJsonDocument &doc)
 {
-    Serial.println("getWeatherForecast");//debug
+    DEBUG_SERIAL.println("getWeatherForecast");//debug
     bool ret = true;
     if((WiFi.status() == WL_CONNECTED)){
         HTTPClient http;
@@ -25,10 +26,10 @@ bool WeatherForecast::getWeatherForecast(DynamicJsonDocument &doc)
         int http_code = http.GET();
         if (http_code > 0) {
             String json_string = createJson(http.getString());
-            // Serial.println("get: " + json_string);//debug
+            // DEBUG_SERIAL.println("get: " + json_string);//debug
             deserializeJson(doc, json_string);
         } else {
-            Serial.println("Error on HTTP request");
+            DEBUG_SERIAL.println("Error on HTTP request");
             ret = false;
         }
         http.end();
@@ -43,9 +44,9 @@ String WeatherForecast::createTimeAreaString(String timearea_string)
 
 bool WeatherForecast::downloadWeatherForecast(void)
 {
-    Serial.println("downloadWeatherForecast");//debug
+    DEBUG_SERIAL.println("downloadWeatherForecast");//debug
     if(!WiFi.isConnected()){
-        Serial.println("WiFi error");//debug
+        DEBUG_SERIAL.println("WiFi error");//debug
         this->is_downloaded_weather = false;
         return false;
     }
@@ -53,13 +54,13 @@ bool WeatherForecast::downloadWeatherForecast(void)
     DynamicJsonDocument weather_info(20000);
 
     if(!getWeatherForecast(weather_info)){
-        Serial.println("getWeatherForecast error");//debug
+        DEBUG_SERIAL.println("getWeatherForecast error");//debug
         this->is_downloaded_weather = false;
         return false;
     }
 
     // String test = weather_info[0]["reportDatetime"];
-    // Serial.println("test: " + test);//debug
+    // DEBUG_SERIAL.println("test: " + test);//debug
 
     String weather_series = weather_info[0]["timeSeries"][0]["areas"][0]; // ["areas"][0] = "南部"
     DynamicJsonDocument weather_series_info(1000);
@@ -76,15 +77,15 @@ bool WeatherForecast::downloadWeatherForecast(void)
     // this->weather = ("雨"); // dummy
     String w = weather_series_info["weatherCodes"][0];
     this->weather = w;
-    // Serial.println("weather: " + w);//debug
+    // DEBUG_SERIAL.println("weather: " + w);//debug
 
     String max_temp = temp_series_info["tempsMax"][1];
     this->max_temperature = max_temp;
 
     String min_temp = temp_series_info["tempsMin"][1];
     this->min_temperature = min_temp;
-    // Serial.println("max_temp: " + max_temp);//debug
-    // Serial.println("min_temp: " + min_temp);//debug
+    // DEBUG_SERIAL.println("max_temp: " + max_temp);//debug
+    // DEBUG_SERIAL.println("min_temp: " + min_temp);//debug
 
     String rain_0 = pops_series_info["areas"][0]["pops"][0];
     String rain_1 = pops_series_info["areas"][0]["pops"][1];
@@ -109,10 +110,10 @@ bool WeatherForecast::downloadWeatherForecast(void)
     this->rain_fall_timearea_2 = rain_timearea_2 + "-" + rain_timearea_3;
     this->rain_fall_timearea_3 = rain_timearea_3 + "-" + rain_timearea_0;
 
-    Serial.println("rain_timearea_0: " + this->rain_fall_timearea_0);//debug
-    Serial.println("rain_timearea_1: " + this->rain_fall_timearea_1);//debug
-    Serial.println("rain_timearea_2: " + this->rain_fall_timearea_2);//debug
-    Serial.println("rain_timearea_3: " + this->rain_fall_timearea_3);//debug
+    DEBUG_SERIAL.println("rain_timearea_0: " + this->rain_fall_timearea_0);//debug
+    DEBUG_SERIAL.println("rain_timearea_1: " + this->rain_fall_timearea_1);//debug
+    DEBUG_SERIAL.println("rain_timearea_2: " + this->rain_fall_timearea_2);//debug
+    DEBUG_SERIAL.println("rain_timearea_3: " + this->rain_fall_timearea_3);//debug
 
     // String today_weather = weather_info["pref"]["area"][this->region.c_str()]["info"][0];
 
