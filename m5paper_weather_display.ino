@@ -2,23 +2,32 @@
 #include <M5EPD.h>
 #include <LovyanGFX.hpp>
 #include <map>
+
+#include <driver/rtc_io.h>
+
 #include "src/wifi_connection.hpp"
 #include "src/weather_forecast.hpp"
+#include "src/time_manager.hpp"
 
 LGFX gfx;
+LGFX_Sprite time_sp(&gfx);
 LGFX_Sprite sense_temp_sp(&gfx);
 LGFX_Sprite sense_humi_sp(&gfx);
 LGFX_Sprite rfc_sp(&gfx);
 LGFX_Sprite temp_sp(&gfx);
+LGFX_Sprite batt_sp(&gfx);
 
 WiFiConnection wifi_connection;
 WeatherForecast weather_forecast;
+TimeManager time_manager;
 
 int w;
 int h;
 
 //weather
 std::map<int, String> weather_icon_file_map;
+
+RTC_DATA_ATTR int bootCount = 0;  // 起動回数を保持（deepsleepしても値は消えない）
 
 void setupWeatherIcon(void)
 {
@@ -43,13 +52,32 @@ void setup(void)
   setupWeatherIcon();
 
   //M5.begin();
-  M5.begin(true, true, true, true, false, false);//custmized
+  //M5.begin(true, true, true, true, false, false);//custmized
+  M5.begin(true, true, true, true, false);
 
   M5.SHT30.Begin();
   M5.RTC.begin();
+  
+  switch(esp_sleep_get_wakeup_cause())
+  {
+  case ESP_SLEEP_WAKEUP_EXT0 :
+  case ESP_SLEEP_WAKEUP_EXT1 :
+  case ESP_SLEEP_WAKEUP_TIMER :
+  case ESP_SLEEP_WAKEUP_TOUCHPAD :
+  case ESP_SLEEP_WAKEUP_ULP :
+    gfx.init_without_reset(); // deep sleep からの復帰時はinit_without_resetを呼び出す。
+    break;
 
-  gfx.init();
-  gfx.setRotation(1);
+  default :
+    gfx.init();            // 通常起動時はinitを呼び出す。
+    break;
+  }
+  
+  ++bootCount;
+
+//  gfx.init();
+  // gfx.setRotation(1);
+  gfx.setRotation(3);
 
   w = gfx.width();
   h = gfx.height();
@@ -62,6 +90,14 @@ void setup(void)
   gfx.setFont(&fonts::Font8);
   gfx.setTextColor(TFT_BLACK, TFT_WHITE);
   gfx.setTextSize(0.85);
+
+  time_sp.setColorDepth(4);
+  time_sp.createSprite(300, 35);
+  time_sp.setFont(&fonts::lgfxJapanGothic_28);
+
+  batt_sp.setColorDepth(4);
+  batt_sp.createSprite(200, 35);
+  batt_sp.setFont(&fonts::lgfxJapanGothic_28);
 
   sense_temp_sp.setColorDepth(4);
   sense_temp_sp.createSprite(120, 80);
@@ -85,16 +121,34 @@ void setup(void)
   drawHumidityIcon();
   drawSenseTempAndHumid();
 
+  drawBatteryRemain();
+  Serial.printf("Start Application\r\n");
+
   wifi_connection.setupWiFi();
-
-  drawDate("12.05 12:34");
-
+  time_manager.syncTime();
+  //time_manager.setWakeupTime(time_manager.getHour(), time_manager.getMin()+2);
+  time_manager.setWakeupTime(6, 30); //06:30
+  drawDate(time_manager.getDate().c_str());
+  drawTime(time_manager.getHour(), time_manager.getMin());
   if(weather_forecast.downloadWeatherForecast()){
     drawWeather();
     drawRainFallChance();
     drawTemperature();
+    drawNotice();
   }
+  delay(1000);
   wifi_connection.downWiFi();
+
+  // M5.shutdown(15300);//Updated every 4.25h
+  //M5.shutdown(60);//Updated every 4.25h
+
+  /////////////////////////////////
+
+  ESP_LOGW("sleep");
+  esp_sleep_enable_timer_wakeup(180 * 1000 * 1000); // 180 sec
+
+  esp_deep_sleep_start();
+
 }
 
 void drawWeather(void)
@@ -103,23 +157,60 @@ void drawWeather(void)
   gfx.startWrite();
   gfx.drawJpgFile(SD, weather_icon_file_map[weather_enum].c_str(), 40, 100); 
   gfx.endWrite();
-  gfx.display();
+  gfx.waitDisplay();
+}
+
+void drawTime(int8_t hour, int8_t min)
+{
+  time_sp.clear(TFT_WHITE);
+  time_sp.setTextColor(TFT_BLACK);
+  time_sp.setTextSize(1.0);
+
+  char c_time[100] = {0};
+  snprintf(c_time, sizeof(c_time), "Last Updated %02d:%02d", hour, min);
+  time_sp.drawString(c_time, 0, 0);
+  time_sp.pushSprite(470, 10);
+}
+
+int8_t batteryRemain(void)
+{
+  const int16_t max_voltage = 4100;
+  const int16_t min_voltage = 3400;
+
+  int16_t battery_remain = (int16_t)(((float)M5.getBatteryVoltage() - min_voltage) / (float)(max_voltage - min_voltage) * 100.);
+  if(battery_remain > 100) battery_remain = 100;
+  if(battery_remain < 0) battery_remain = 0;
+  Serial.printf("battery_remain %d\n", battery_remain);
+  return battery_remain;
+}
+
+void drawBatteryRemain(void)
+{
+  batt_sp.clear(TFT_WHITE);
+  batt_sp.setTextColor(TFT_BLACK);
+  batt_sp.setTextSize(1.0);
+
+  char c_batt[100] = {0};
+  snprintf(c_batt, sizeof(c_batt), "%d %d%%", M5.getBatteryVoltage(), batteryRemain());
+  batt_sp.drawString(c_batt, 0, 0);
+  //batt_sp.pushSprite(470+400, 10);
+  batt_sp.pushSprite(470+300, 10);
 }
 
 void drawThermometerIcon(void)
 {
   gfx.startWrite();
-  gfx.drawJpgFile(SD, "/thermometer.jpg", 470, 35); 
+  gfx.drawJpgFile(SD, "/thermometer.jpg", 470, 50); 
   gfx.endWrite();
-  gfx.display();
+  gfx.waitDisplay();
 }
 
 void drawHumidityIcon(void)
 {
   gfx.startWrite();
-  gfx.drawJpgFile(SD, "/humidity.jpg", 710, 35); 
+  gfx.drawJpgFile(SD, "/humidity.jpg", 710, 50); 
   gfx.endWrite();
-  gfx.display();
+  gfx.waitDisplay();
 }
 
 void drawSenseTempAndHumid(void)
@@ -131,12 +222,12 @@ void drawSenseTempAndHumid(void)
   sense_temp_sp.clear(TFT_WHITE);
   sense_temp_sp.setTextColor(TFT_BLACK);
   sense_temp_sp.drawNumber((int)temp, 0, 0);
-  sense_temp_sp.pushSprite(570, 40);
+  sense_temp_sp.pushSprite(570, 55);
 
   sense_humi_sp.clear(TFT_WHITE);
   sense_humi_sp.setTextColor(TFT_BLACK);
   sense_humi_sp.drawNumber((int)humi, 0, 0);
-  sense_humi_sp.pushSprite(570+250, 40);
+  sense_humi_sp.pushSprite(570+250, 55);
 }
 
 void drawRainFallChance(void)
@@ -150,16 +241,24 @@ void drawRainFallChance(void)
   String rfc18_24 = weather_forecast.getRainFallChance18_24() + "%";
 
   rfc_sp.setTextSize(0.8);
-  rfc_sp.drawString("00-06", 120*0, 0);
-  rfc_sp.drawString("06-12", 120*1, 0);
-  rfc_sp.drawString("12-18", 120*2, 0);
-  rfc_sp.drawString("18-24", 120*3, 0);
+  // rfc_sp.drawString("00-06", 120*0, 0);
+  // rfc_sp.drawString("06-12", 120*1, 0);
+  // rfc_sp.drawString("12-18", 120*2, 0);
+  // rfc_sp.drawString("18-24", 120*3, 0);
+  String timeArea0 = weather_forecast.getRainFallTimeArea0();
+  String timeArea1 = weather_forecast.getRainFallTimeArea1();
+  String timeArea2 = weather_forecast.getRainFallTimeArea2();
+  String timeArea3 = weather_forecast.getRainFallTimeArea3();
+  rfc_sp.drawString(timeArea0, 120*0, 0);
+  rfc_sp.drawString(timeArea1, 120*1, 0);
+  rfc_sp.drawString(timeArea2, 120*2, 0);
+  rfc_sp.drawString(timeArea3, 120*3, 0);
   rfc_sp.setTextSize(1.3);
-  rfc_sp.drawString(rfc00_06.c_str(), 120*0, 50);
-  rfc_sp.drawString(rfc06_12.c_str(), 120*1, 50);
-  rfc_sp.drawString(rfc12_18.c_str(), 120*2, 50);
-  rfc_sp.drawString(rfc18_24.c_str(), 120*3, 50);
-  rfc_sp.pushSprite(470, 160);
+  rfc_sp.drawString(rfc00_06.c_str(), 120*0, 46);
+  rfc_sp.drawString(rfc06_12.c_str(), 120*1, 46);
+  rfc_sp.drawString(rfc12_18.c_str(), 120*2, 46);
+  rfc_sp.drawString(rfc18_24.c_str(), 120*3, 46);
+  rfc_sp.pushSprite(470, 180);
 }
 
 void drawTemperature(void)
@@ -170,22 +269,26 @@ void drawTemperature(void)
   String max_temp = weather_forecast.getMaxTemperature() + "℃";
   String min_temp = weather_forecast.getMinTemperature() + "℃";
 
-  //String max_temp = "23℃";
-  //String min_temp = "9℃";
   temp_sp.setTextSize(0.65);
   temp_sp.drawString("最高", 0, 0);
   temp_sp.drawString("最低", 240, 0);
   temp_sp.setTextSize(1.4);
   temp_sp.drawString(max_temp.c_str(), 0, 25);
   temp_sp.drawString(min_temp.c_str(), 240, 25);
-  temp_sp.pushSprite(470, 275);
+  temp_sp.pushSprite(470, 300);
+}
+
+void drawNotice(void)
+{
+  if(weather_forecast.willBeRainy()){
+    gfx.startWrite();
+    gfx.drawJpgFile(SD, "/notice.jpg", 470, 400); 
+    gfx.endWrite();
+    gfx.waitDisplay();
+  }
 }
 
 void loop(void)
 {
-  if(M5.BtnP.wasPressed()){
-    M5.shutdown(5);
-  }
-
   M5.update();
 }

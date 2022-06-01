@@ -26,9 +26,14 @@ private:
     String rain_fall_chance_06_12;
     String rain_fall_chance_12_18;
     String rain_fall_chance_18_24;
+    String rain_fall_timearea_0;
+    String rain_fall_timearea_1;
+    String rain_fall_timearea_2;
+    String rain_fall_timearea_3;
 
     String createJson(String json_string);
     bool getWeatherForecast(DynamicJsonDocument &doc);
+    String createTimeAreaString(String timearea_string);
 
 public:
     WeatherForecast();
@@ -43,4 +48,9 @@ public:
     String getRainFallChance06_12(void){ return rain_fall_chance_06_12; };
     String getRainFallChance12_18(void){ return rain_fall_chance_12_18; };
     String getRainFallChance18_24(void){ return rain_fall_chance_18_24; };
+    String getRainFallTimeArea0(void){ return rain_fall_timearea_0; };
+    String getRainFallTimeArea1(void){ return rain_fall_timearea_1; };
+    String getRainFallTimeArea2(void){ return rain_fall_timearea_2; };
+    String getRainFallTimeArea3(void){ return rain_fall_timearea_3; };
+    bool willBeRainy(void);
 };
