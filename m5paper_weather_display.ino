@@ -65,7 +65,8 @@ String SD_read() {
             str += char(file.read());
         }
     } else{
-        Serial.println(" error...");
+//        Serial.println(" error...");
+        Serial2.println(" error...");
     }
     //---ファイルを閉じる
     file.close();
@@ -81,7 +82,8 @@ void SD_write()
     if (s_myFile) {
 
         M5.RTC.getTime(&RTCtime);
-        Serial.print("Writing to test.txt...");
+        // Serial.print("Writing to test.txt...");
+        Serial2.print("Writing to test.txt...");
         s_myFile.print(backLog);
         // sprintf(str_log, "%02d:%02d:%02d Hello, World ", RTCtime.hour, RTCtime.min, RTCtime.sec);
         snprintf(str_log, sizeof(str_log), "%02d:%02d:%02d %d %d%%", RTCtime.hour, RTCtime.min, RTCtime.sec, M5.getBatteryVoltage(), batteryRemain());
@@ -90,9 +92,11 @@ void SD_write()
         // s_myFile.println("%02d:%02d:%02d Hello, World\n",
         //               RTCtime.hour, RTCtime.min, RTCtime.sec);
         s_myFile.close();
-        Serial.println("done.");
+//        Serial.println("done.");
+        Serial2.println("done.");
     } else {
-        Serial.println("error opening test.txt");
+//        Serial.println("error opening test.txt");
+        Serial2.println("error opening test.txt");
     }
 }
 
@@ -103,6 +107,8 @@ void setup(void)
   //M5.begin();
   //M5.begin(true, true, true, true, false, false);//custmized
   M5.begin(true, true, true, true, false);
+
+  Serial2.begin(115200, SERIAL_8N1, 19, 18);
 
   SD_write();
 
@@ -173,7 +179,8 @@ void setup(void)
   drawSenseTempAndHumid();
 
   drawBatteryRemain();
-  Serial.printf("Start Application\r\n");
+  // Serial.printf("Start Application\r\n");
+  Serial2.printf("Start Application\r\n");
 
   wifi_connection.setupWiFi();
   time_manager.syncTime();
@@ -237,7 +244,8 @@ int8_t batteryRemain(void)
   int16_t battery_remain = (int16_t)(((float)M5.getBatteryVoltage() - min_voltage) / (float)(max_voltage - min_voltage) * 100.);
   if(battery_remain > 100) battery_remain = 100;
   if(battery_remain < 0) battery_remain = 0;
-  Serial.printf("battery_remain %d\n", battery_remain);
+  // Serial.printf("battery_remain %d\n", battery_remain);
+  Serial2.printf("battery_remain %d\n", battery_remain);
   return battery_remain;
 }
 
@@ -275,7 +283,8 @@ void drawSenseTempAndHumid(void)
   M5.SHT30.UpdateData();
   float temp = M5.SHT30.GetTemperature();
   float humi = M5.SHT30.GetRelHumidity();
-  Serial.printf("Temperatura: %d*C  Humedad: %d%%\r\n", (int)temp, (int)humi);
+  // Serial.printf("Temperatura: %d*C  Humedad: %d%%\r\n", (int)temp, (int)humi);
+  Serial2.printf("Temperatura: %d*C  Humedad: %d%%\r\n", (int)temp, (int)humi);
   sense_temp_sp.clear(TFT_WHITE);
   sense_temp_sp.setTextColor(TFT_BLACK);
   sense_temp_sp.drawNumber((int)temp, 0, 0);
