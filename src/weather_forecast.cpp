@@ -4,12 +4,14 @@
 
 WeatherForecast::WeatherForecast(void)
 {
-    this->endpoint = "https://www.jma.go.jp/bosai/forecast/data/forecast/330000.json";
-    this->region = "南部";
+    this->endpoint = "https://www.drk7.jp/weather/json/14.js";
+    this->region = "東部";
 }
 
 String WeatherForecast::createJson(String json_string)
 {
+    // json_string.replace("drk7jpweather.callback(","");
+    // return json_string.substring(0, json_string.length() - 2);
     return json_string;
 }
 
@@ -23,6 +25,7 @@ bool WeatherForecast::getWeatherForecast(DynamicJsonDocument &doc)
         int http_code = http.GET();
         if (http_code > 0) {
             String json_string = createJson(http.getString());
+            // Serial.println("get: " + json_string);//debug
             deserializeJson(doc, json_string);
         } else {
             Serial.println("Error on HTTP request");
@@ -55,6 +58,8 @@ bool WeatherForecast::downloadWeatherForecast(void)
         return false;
     }
 
+    // String test = weather_info[0]["reportDatetime"];
+    // Serial.println("test: " + test);//debug
 
     String weather_series = weather_info[0]["timeSeries"][0]["areas"][0]; // ["areas"][0] = "南部"
     DynamicJsonDocument weather_series_info(1000);
@@ -68,6 +73,7 @@ bool WeatherForecast::downloadWeatherForecast(void)
     DynamicJsonDocument pops_series_info(1000);
     deserializeJson(pops_series_info, pops_series);    
 
+    // this->weather = ("雨"); // dummy
     String w = weather_series_info["weatherCodes"][0];
     this->weather = w;
     // Serial.println("weather: " + w);//debug
@@ -108,6 +114,32 @@ bool WeatherForecast::downloadWeatherForecast(void)
     Serial.println("rain_timearea_2: " + this->rain_fall_timearea_2);//debug
     Serial.println("rain_timearea_3: " + this->rain_fall_timearea_3);//debug
 
+    // String today_weather = weather_info["pref"]["area"][this->region.c_str()]["info"][0];
+
+    // DynamicJsonDocument today_weather_info(20000);
+    // deserializeJson(today_weather_info, today_weather);    
+
+    // String w = today_weather_info["weather"];
+    // this->weather = w;
+
+    // String max_temp = today_weather_info["temperature"]["range"][0]["content"];
+    // this->max_temperature = max_temp;
+
+    // String min_temp = today_weather_info["temperature"]["range"][1]["content"];
+    // this->min_temperature = min_temp;
+
+    // String rain_0 = today_weather_info["rainfallchance"]["period"][0]["content"];
+    // this->rain_fall_chance_00_06 = rain_0;
+
+    // String rain_1 = today_weather_info["rainfallchance"]["period"][1]["content"];
+    // this->rain_fall_chance_06_12 = rain_1;
+
+    // String rain_2 = today_weather_info["rainfallchance"]["period"][2]["content"];
+    // this->rain_fall_chance_12_18 = rain_2;
+
+    // String rain_3 = today_weather_info["rainfallchance"]["period"][3]["content"];
+    // this->rain_fall_chance_18_24 = rain_3;
+
     this->is_downloaded_weather = true;
 
     return true;
@@ -139,6 +171,25 @@ int WeatherForecast::getWeatherEnum(void)
         ret = CLOUDY;
     }
     return ret;
+
+    // if(weather.indexOf("雨") != -1){
+    //     if(weather.indexOf("くもり") != -1){
+    //         return RAINY_AND_CLOUDY;
+    //     }else{
+    //         return RAINY;
+    //     }
+    // }else if(weather.indexOf("晴") != -1){
+    //     if(weather.indexOf("くもり") != -1){
+    //         return SUNNY_AND_CLOUDY;
+    //     }else{
+    //         return SUNNY;
+    //     }
+    // }else if(weather.indexOf("雪") != -1){
+    //     return SNOW;
+    // }else if(weather.indexOf("くもり") != -1){
+    //     return CLOUDY;
+    // }
+    // return WEATHER_NOT_SET;
 }
 
 bool WeatherForecast::willBeRainy(void)

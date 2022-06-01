@@ -1,4 +1,4 @@
 #pragma once
 
-const char* SSID = "ssid";
-const char* PASS = "11111111";
+const char* SSID = "(Your NW SSID)";
+const char* PASS = "(Your NW Password)";

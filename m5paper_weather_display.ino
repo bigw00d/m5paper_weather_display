@@ -241,6 +241,10 @@ void drawRainFallChance(void)
   String rfc18_24 = weather_forecast.getRainFallChance18_24() + "%";
 
   rfc_sp.setTextSize(0.8);
+  // rfc_sp.drawString("00-06", 120*0, 0);
+  // rfc_sp.drawString("06-12", 120*1, 0);
+  // rfc_sp.drawString("12-18", 120*2, 0);
+  // rfc_sp.drawString("18-24", 120*3, 0);
   String timeArea0 = weather_forecast.getRainFallTimeArea0();
   String timeArea1 = weather_forecast.getRainFallTimeArea1();
   String timeArea2 = weather_forecast.getRainFallTimeArea2();
